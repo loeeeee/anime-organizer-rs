@@ -1,1 +1,4 @@
 /target
+.env
+test/download
+test/jellyfin
