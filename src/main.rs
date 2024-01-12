@@ -1,6 +1,8 @@
 mod series;
 mod tests;
 
+use std::fs;
+
 use anime_organizer_rs::load_env_var;
 use dotenvy::dotenv;
 use log::debug;
@@ -28,4 +30,11 @@ fn main() {
 
     // Iterate through source directory to resolve each anime series
     
+    let paths = match fs::read_dir(&source_directory) {
+        Ok(paths) => paths,
+        Err(e) => {
+            error!("Failed open {}, due to {}", &source_directory, &e);
+            panic!();
+        }
+    };
 }

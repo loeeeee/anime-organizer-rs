@@ -10,14 +10,14 @@ use regex::Regex;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-struct FilterWords {
+pub struct FilterWords {
     cc_group: Vec<String>,
     meta_tag: Vec<String>,
     low_priority: Vec<String>,
 }
 
 impl FilterWords {
-    fn load() -> FilterWords {
+    pub fn load() -> FilterWords {
         let filter_words_file_path = "./static/filter_words.yaml";
         let mut filter_words_string = String::new();
         match File::open(filter_words_file_path).unwrap().read_to_string(&mut filter_words_string) {
@@ -96,7 +96,7 @@ impl Series {
             }
         };
 
-        series.name = match Self::extract_series_name(&folder_name.to_string_lossy(), &filter_words) {
+        series.name = match extract_series_name(&folder_name.to_string_lossy(), &filter_words) {
             Ok(name) => {
                 info!("Series name: {}", &name);
                 name
@@ -124,34 +124,36 @@ impl Series {
         todo!()
     }
 
-    fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Result<String, std::io::Error> {
-        /// # Return the cleaned series name inferred from folder name
-    
-        // Remove CC group name
-        let filter_construct_middleware: Vec<String> = filter_words.cc_group.iter()
-            .map(|i| format!("({})", i))
-            .collect();
-    
-        let combined = filter_construct_middleware.join("|"); //.replace(".", "\.").replace("-", "\-");
-        let reg_str = format!(r"{}(&{})*?", combined, combined);
-        let reg = Regex::new(&reg_str).expect("Invalid regex pattern");
 
-        println!("{}", &reg);
-
-
-        // let mut results = vec![];
-        // for (_, [path, lineno, line]) in reg.captures_iter(&folder_name).map(|c| c.extract()) {
-        //     results.push((path, lineno.parse::<u64>()?, line));
-        // }
-    
-        // Remove meta tags
-        // todo!() 
-        return Ok(" ".to_string());
-        // todo!()
-    }
 }
 
 
 fn extract_episode_number(file_name: &str) -> Result<String, ()> {
     todo!()
+}
+
+pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Result<String, std::io::Error> {
+    /// # Return the cleaned series name inferred from folder name
+
+    // Remove CC group name
+    let filter_construct_middleware: Vec<String> = filter_words.cc_group.iter()
+        .map(|i| format!("({})", i))
+        .collect();
+
+    let combined = filter_construct_middleware.join("|"); //.replace(".", "\.").replace("-", "\-");
+    let reg_str = format!(r"{}(&{})*?", combined, combined);
+    let reg = Regex::new(&reg_str).expect("Invalid regex pattern");
+
+    println!("{}", &reg);
+
+
+    // let mut results = vec![];
+    // for (_, [path, lineno, line]) in reg.captures_iter(&folder_name).map(|c| c.extract()) {
+    //     results.push((path, lineno.parse::<u64>()?, line));
+    // }
+
+    // Remove meta tags
+    // todo!() 
+    return Ok(" ".to_string());
+    // todo!()
 }
