@@ -1,4 +1,4 @@
-CC Group:
+cc_group:
   - VCB Studio
   - VCB-Studio
   - Airota
@@ -26,7 +26,7 @@ CC Group:
   - SweetSub
   - Netflix
   - rartv
-Media Meta:
+meta_tag:
   - 1080p
   - 1440p
   - 720p
@@ -69,7 +69,7 @@ Media Meta:
   - JAPANESE
   - Smurf
   - HD
-No Interest: # This will only do semi-strict search
+low_priority: # This will only do semi-strict search
   - Font
   - Menu
   - Subtitle
