@@ -168,6 +168,7 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
         let reg = Regex::new(r"\([^\]]*?(%ReM0vE%)[^\[]*?\)").unwrap();
         reg.replace_all(&result, "").to_string()
     };
+    debug!("After removing %ReM0vE%: {}", &result);
 
     // Remove square brackets
     result = {
@@ -184,8 +185,6 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
     };
 
     debug!("After removing random things: {}", &result);
-
-    // debug!("{}", &reg);
 
     Ok(result.trim().to_string())
     
