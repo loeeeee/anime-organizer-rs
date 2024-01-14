@@ -136,24 +136,57 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
     /// # Return the cleaned series name inferred from folder name
 
     // Remove CC group name
-    let filter_construct_middleware: Vec<String> = filter_words.cc_group.iter()
-        .map(|i| format!("({})", i))
-        .collect();
-
-    let combined = filter_construct_middleware.join("|"); //.replace(".", "\.").replace("-", "\-");
-    let reg_str = format!(r"{}(&{})*?", combined, combined);
-    let reg = Regex::new(&reg_str).expect("Invalid regex pattern");
-
-    println!("{}", &reg);
-
-
-    // let mut results = vec![];
-    // for (_, [path, lineno, line]) in reg.captures_iter(&folder_name).map(|c| c.extract()) {
-    //     results.push((path, lineno.parse::<u64>()?, line));
-    // }
+    let mut result = {
+        let filter_construct_middleware: Vec<String> = filter_words.cc_group.iter()
+            .map(|i| format!("({})", i))
+            .collect();
+    
+        let combined = filter_construct_middleware.join("|");
+        let reg_str = format!(r"{}(&{})*?", combined, combined);
+        let reg = Regex::new(&reg_str).expect("Invalid regex pattern"); // Todo: Add ignore case
+        reg.replace_all(&folder_name, "%ReM0vE%").to_string()
+    };
 
     // Remove meta tags
-    // todo!() 
-    return Ok(" ".to_string());
-    // todo!()
+    result = {
+        let filter_construct_middleware: Vec<String> = filter_words.meta_tag.iter()
+            .map(|i| format!("({})", i))
+            .collect();
+    
+        let combined = filter_construct_middleware.join("|");
+        let reg_str = format!(r"{}(&{})*?", combined, combined);
+        let reg = Regex::new(&reg_str).expect("Invalid regex pattern"); // Todo: Add ignore case
+        reg.replace_all(&result, "%ReM0vE%").to_string()
+    };
+
+    // Remove %ReM0vE%
+    result = {
+        let reg = Regex::new(r"\[[^\]]*?(%ReM0vE%)[^\[]*?\]").unwrap();
+        reg.replace_all(&result, "").to_string()
+    };
+    result = {
+        let reg = Regex::new(r"\([^\]]*?(%ReM0vE%)[^\[]*?\)").unwrap();
+        reg.replace_all(&result, "").to_string()
+    };
+
+    // Remove square brackets
+    result = {
+        let reg = Regex::new(r"\[\W*?\]").unwrap();
+        reg.replace_all(&result, "").to_string()
+    };
+
+    debug!("After removing square brackets: {}", &result);
+
+    // Remove random things
+    result = {
+        let reg = Regex::new(r"\[[(\s)-_]*\]").unwrap();
+        reg.replace_all(&result, "").to_string()
+    };
+
+    debug!("After removing random things: {}", &result);
+
+    // debug!("{}", &reg);
+
+    Ok(result.trim().to_string())
+    
 }

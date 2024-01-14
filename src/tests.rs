@@ -6,20 +6,24 @@ mod tests {
     use anime_organizer_rs::load_env_var;
     use log::{warn, error, info};
     use crate::series::{Series, FilterWords};
-
-    struct SeriesName {
-        folder_name: String,
-        series_name: String,
-    }
-
+    
+    
     #[test]
     fn series_name_extraction() {
+        use serde::{Deserialize, Serialize};
+
         // Load env
         dotenvy::from_filename("test.env").unwrap();
         
         // Init logger
         env_logger::init();
-
+        
+        #[derive(Serialize, Deserialize)]
+        struct SeriesName {
+            folder_name: String,
+            series_name: String,
+        }
+        
         // Filter words
         let filter_words = FilterWords::load();
 
@@ -37,12 +41,12 @@ mod tests {
             }
         };
 
-        let test_sheet: serde_json::Value = serde_json::from_str(&tests_series_names).expect("JSON was not well-formatted");
+        let test_sheet: Vec<SeriesName> = serde_json::from_str(&tests_series_names).expect("JSON was not well-formatted");
         // info!("{}", &test_sheet)
 
-        for (key, value) in test_sheet.as_object().unwrap() {
-            // info!("{}: {}", &key, &value);
-            assert_eq!(crate::series::extract_series_name(&key, &filter_words).unwrap(), value.to_string());
+        for i in test_sheet.iter() {
+            info!("{}: {}", &i.folder_name, &i.series_name);
+            assert_eq!(crate::series::extract_series_name(&i.folder_name, &filter_words).unwrap(), i.series_name.to_string());
         };
 
     }

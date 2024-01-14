@@ -1,8 +1,26 @@
-{
-    "[DMG&SumiSora&VCB-Studio] Engage Kiss [Ma10p_1080p]": "Engage Kiss",
-    "[EggPain-Raws&VCB-Studio] Freezing (BDrip 1920x1080 HEVC-YUV420P10 FLAC)": "Freezing",
-    "[FLsnow&VCB-Studio] Yurikuma Arashi [Ma10p_1080p]": "Yurikuma Arashi",
-    "[SweetSub&VCB-Studio] Oniichan ha Oshimai! [Ma10p_1080p]": "Oniichan ha Oshimai!",
-    "[VCB-Studio] Toaru Majutsu no Index III [Ma10p_1080p]": "Toaru Majutsu no Index",
-    "[YYDM&VCB-Studio] Shinsekai Yori [Ma10p_1080p]": "Shinsekai Yori"
-}
+[
+    {
+        "folder_name": "[DMG&SumiSora&VCB-Studio] Engage Kiss [Ma10p_1080p]",
+        "series_name": "Engage Kiss"
+    },
+    {
+        "folder_name": "[EggPain-Raws&VCB-Studio] Freezing (BDrip 1920x1080 HEVC-YUV420P10 FLAC)",
+        "series_name": "Freezing"
+    },
+    {
+        "folder_name": "[FLsnow&VCB-Studio] Yurikuma Arashi [Ma10p_1080p]",
+        "series_name": "Yurikuma Arashi"
+    },
+    {
+        "folder_name": "[SweetSub&VCB-Studio] Oniichan ha Oshimai! [Ma10p_1080p]",
+        "series_name": "Oniichan ha Oshimai!"
+    },
+    {
+        "folder_name": "[VCB-Studio] Toaru Majutsu no Index III [Ma10p_1080p]",
+        "series_name": "Toaru Majutsu no Index III"
+    },
+    {
+        "folder_name": "[YYDM&VCB-Studio] Shinsekai Yori [Ma10p_1080p]",
+        "series_name": "Shinsekai Yori"
+    }
+]
