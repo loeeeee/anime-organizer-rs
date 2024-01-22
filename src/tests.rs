@@ -6,31 +6,21 @@ mod tests {
     use anime_organizer_rs::load_env_var;
     use log::{warn, error, info};
     use crate::series::{Series, FilterWords};
-    
-    
-    #[test]
-    fn series_name_extraction() {
-        use serde::{Deserialize, Serialize};
 
+    fn setup() {
         // Load env
         dotenvy::from_filename("test.env").unwrap();
-        
-        // Init logger
-        env_logger::init();
-        
-        #[derive(Serialize, Deserialize)]
-        struct SeriesName {
-            folder_name: String,
-            series_name: String,
-        }
-        
-        // Filter words
-        let filter_words = FilterWords::load();
 
-        let tests_series_names_path = load_env_var("TESTS_SERIES_NAMES").unwrap();
+        // Init logger
+        // env_logger::init();
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
+    fn load_test_sheet(test_sheet_name: &str) -> String {
+        let tests_series_names_path = load_env_var(&test_sheet_name).unwrap();
         info!("Series Name test sheet: {}", &tests_series_names_path);
 
-        let tests_series_names = match fs::read_to_string(tests_series_names_path) {
+        match fs::read_to_string(tests_series_names_path) {
             Ok(tests) => {
                 info!("Successfully read the test sheet.");
                 tests
@@ -39,15 +29,58 @@ mod tests {
                 error!("Failed to load test sheet, due to {}.", &e);
                 panic!();
             }
-        };
+        }
+    }
+    
+    #[test]
+    fn series_name_extraction() {
+        // Setup
+        setup();
+        
+        // Load test sheet        
+        use serde::{Deserialize, Serialize};
 
-        let test_sheet: Vec<SeriesName> = serde_json::from_str(&tests_series_names).expect("JSON was not well-formatted");
-        // info!("{}", &test_sheet)
+        #[derive(Serialize, Deserialize)]
+        struct SeriesName {
+            folder_name: String,
+            series_name: String,
+        }
 
+        let test_sheet: Vec<SeriesName> = serde_json::from_str(&load_test_sheet(&"TEST_SERIES_NAME".to_string())).expect("JSON was not well-formatted");
+        
+        // Filter words
+        let filter_words = FilterWords::load();
+
+        // Run test
         for i in test_sheet.iter() {
             info!("{}: {}", &i.folder_name, &i.series_name);
             assert_eq!(crate::series::extract_series_name(&i.folder_name, &filter_words).unwrap(), i.series_name.to_string());
         };
+    }
 
+    #[test]
+    fn series_season_number_extraction() {
+        // Setup
+        setup();
+
+        // Load test sheet
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize)]
+        struct SeasonNumber {
+            folder_name: String,
+            season_number: i16,
+        }
+
+        let test_sheet: Vec<SeasonNumber> = serde_json::from_str(&load_test_sheet(&"TEST_SERIES_SEASON_NUMBER".to_string())).expect("JSON was not well-formatted");
+
+        // Filter words
+        let filter_words = FilterWords::load();
+
+        // Run test
+        for i in test_sheet.iter() {
+            info!("{}: {}", &i.folder_name, &i.season_number);
+            assert_eq!(crate::series::extract_series_season_number(&i.folder_name, &filter_words).unwrap().to_string(), i.season_number.to_string());
+        };
     }
 }

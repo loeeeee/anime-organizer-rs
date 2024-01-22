@@ -187,15 +187,16 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
     debug!("After removing roman numbers: {}", &result);
 
     Ok(result.trim().to_string())
-    
 }
 
-pub fn extract_series_season_number(file_name: &str) -> Result<i16, > { // TODO: Move this function to struct
+pub fn extract_series_season_number(file_name: &str, filter_words: &FilterWords) -> Result<i16, > { // TODO: Move this function to struct
+
+    let clean_file_name = basic_file_name_cleaning(&file_name, &filter_words).unwrap();
 
     // Extract from Roman numerals
     {
         let reg = Regex::new(r"(?i)\s+(I{1,3}|IV|VI{0,3}|IX|XI{0,3})$").unwrap();
-        match reg.captures(&file_name) {
+        match reg.captures(&clean_file_name) {
             Some(caps) => match roman_to_int(&caps[1]).try_into() {
                 Ok(season_number) => {
                     debug!("Successfully extract season number from Roman numeral, {}", &season_number);
@@ -210,7 +211,7 @@ pub fn extract_series_season_number(file_name: &str) -> Result<i16, > { // TODO:
     // Extract from explicit season number
     {
         let reg = Regex::new(r"(?i)\s+(?:season|S)\s*(\d+)$").unwrap();
-        match reg.captures(&file_name) {
+        match reg.captures(&clean_file_name) {
             Some(caps) => match &caps[1].parse::<i16>() {
                 Ok(season_number) => {
                     debug!("Successfully extract season number from explicit season number, {}", &season_number);
@@ -222,6 +223,7 @@ pub fn extract_series_season_number(file_name: &str) -> Result<i16, > { // TODO:
         }
     }
 
+    // TODO: Non-explicit season number
     Ok(1)
 }
 
