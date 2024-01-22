@@ -74,7 +74,7 @@ struct Subtitle {
 }
 
 impl Series {
-    pub fn new(folder_path: &str) -> Result<Series, ()> {
+    pub fn new(folder_path: &str) -> Result<Series, > {
         // Entry point for Series struct
         debug!("Folder path: {}", &folder_path);
 
@@ -191,48 +191,38 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
 }
 
 pub fn extract_series_season_number(file_name: &str) -> Result<i16, > { // TODO: Move this function to struct
-    // Default to season 1
-    let mut result: i16 = 1;
 
     // Extract from Roman numerals
-    result = {
+    {
         let reg = Regex::new(r"(?i)\s+(I{1,3}|IV|VI{0,3}|IX|XI{0,3})$").unwrap();
         match reg.captures(&file_name) {
             Some(caps) => match roman_to_int(&caps[1]).try_into() {
                 Ok(season_number) => {
                     debug!("Successfully extract season number from Roman numeral, {}", &season_number);
-                    season_number
+                    return Ok(season_number);
                 },
-                Err(_) => {
-                    debug!("Fail to infer season number from Roman numeral.");
-                    1
-                },
+                Err(_) => debug!("Fail to infer season number from Roman numeral."),
             },
-            None => 1,
+            None => debug!("Fail to infer season number from Roman numeral."),
         }
-    };
+    }
 
     // Extract from explicit season number
-    result = {
+    {
         let reg = Regex::new(r"(?i)\s+(?:season|S)\s*(\d+)$").unwrap();
-        match reg.captures(&result)  {
-            Some(caps) => {
-                match &caps[1].parse::<i16>() {
-                    Ok(season_number) => {
-                        debug!("Successfully extract season number from explicit season number, {}", &season_number);
-                        season_number
-                    },
-                    Err(_) => {
-                        debug!("Fail to infer season number from explicit season number");
-                        1
-                    }
-                }
-            }
-            None => 1,
+        match reg.captures(&file_name) {
+            Some(caps) => match &caps[1].parse::<i16>() {
+                Ok(season_number) => {
+                    debug!("Successfully extract season number from explicit season number, {}", &season_number);
+                    return Ok(*season_number);
+                },
+                Err(_) => debug!("Fail to infer season number from explicit season number."),
+            },
+            None => debug!("Fail to infer season number from explicit season number."),
         }
-    };
+    }
 
-    return Ok(result);
+    Ok(1)
 }
 
 fn roman_to_int(roman: &str) -> i32 {
