@@ -107,20 +107,6 @@ impl Series {
             }
         };
 
-        // let series_name = match Self::extract_series_name {
-        //     Ok(result) => {
-        //         info!("Find series {}", &result);
-        //         result
-        //     },
-        //     Err(e) => {
-        //         warn!("Failed to extract series name from {}, due to {}", &folder_path, &e);
-        //         None
-        //     }
-        // };
-        // if series_name == None {
-        //     return Err(())
-        // }
-
         todo!()
     }
 
@@ -142,7 +128,7 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
             .collect();
     
         let combined = filter_construct_middleware.join("|");
-        let reg_str = format!(r"{}(&{})*?", combined, combined);
+        let reg_str = format!(r"(?i){}(&{})*?", combined, combined);
         let reg = Regex::new(&reg_str).expect("Invalid regex pattern"); // Todo: Add ignore case
         reg.replace_all(&folder_name, "%ReM0vE%").to_string()
     };
@@ -154,7 +140,7 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
             .collect();
     
         let combined = filter_construct_middleware.join("|");
-        let reg_str = format!(r"{}(&{})*?", combined, combined);
+        let reg_str = format!(r"(?i){}(&{})*?", combined, combined);
         let reg = Regex::new(&reg_str).expect("Invalid regex pattern"); // Todo: Add ignore case
         reg.replace_all(&result, "%ReM0vE%").to_string()
     };
@@ -183,8 +169,19 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
         let reg = Regex::new(r"\[[(\s)-_]*\]").unwrap();
         reg.replace_all(&result, "").to_string()
     };
+    
+    // Trim
+    result = result.trim().to_string();
 
     debug!("After removing random things: {}", &result);
+
+    // Remove Roman numbers
+    result = {
+        let reg = Regex::new(r"(?i)\s+(I{1,3}|IV|VI{0,3}|IX|XI{0,3})$").unwrap();
+        reg.replace_all(&result, "").to_string()
+    };
+
+    debug!("After removing roman numbers: {}", &result);
 
     Ok(result.trim().to_string())
     
