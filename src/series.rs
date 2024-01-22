@@ -2,6 +2,7 @@ use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+use dotenvy::Result;
 use log::debug;
 use log::error;
 use log::warn;
@@ -113,14 +114,7 @@ impl Series {
 
 }
 
-
-fn extract_episode_number(file_name: &str) -> Result<String, ()> {
-    todo!()
-}
-
-pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Result<String, std::io::Error> {
-    /// # Return the cleaned series name inferred from folder name
-
+fn basic_file_name_cleaning(file_name: &str, filter_words: &FilterWords) -> Result<String, > { // TODO: Make this a static method
     // Remove CC group name
     let mut result = {
         let filter_construct_middleware: Vec<String> = filter_words.cc_group.iter()
@@ -130,7 +124,7 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
         let combined = filter_construct_middleware.join("|");
         let reg_str = format!(r"(?i){}(&{})*?", combined, combined);
         let reg = Regex::new(&reg_str).expect("Invalid regex pattern"); // Todo: Add ignore case
-        reg.replace_all(&folder_name, "%ReM0vE%").to_string()
+        reg.replace_all(&file_name, "%ReM0vE%").to_string()
     };
 
     // Remove meta tags
@@ -170,10 +164,19 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
         reg.replace_all(&result, "").to_string()
     };
     
-    // Trim
-    result = result.trim().to_string();
-
     debug!("After removing random things: {}", &result);
+    
+    // Trim
+    Ok(result.trim().to_string())
+}
+
+fn extract_episode_number(file_name: &str) -> Result<String, > {
+    todo!()
+}
+
+pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Result<String, > {
+
+    let mut result = basic_file_name_cleaning(&folder_name, &filter_words).unwrap(); // TODO: Use cache in struct
 
     // Remove Roman numbers
     result = {
@@ -185,4 +188,78 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
 
     Ok(result.trim().to_string())
     
+}
+
+pub fn extract_series_season_number(file_name: &str) -> Result<i16, > { // TODO: Move this function to struct
+    // Default to season 1
+    let mut result: i16 = 1;
+
+    // Extract from Roman numerals
+    result = {
+        let reg = Regex::new(r"(?i)\s+(I{1,3}|IV|VI{0,3}|IX|XI{0,3})$").unwrap();
+        match reg.captures(&file_name) {
+            Some(caps) => match roman_to_int(&caps[1]).try_into() {
+                Ok(season_number) => {
+                    debug!("Successfully extract season number from Roman numeral, {}", &season_number);
+                    season_number
+                },
+                Err(_) => {
+                    debug!("Fail to infer season number from Roman numeral.");
+                    1
+                },
+            },
+            None => 1,
+        }
+    };
+
+    // Extract from explicit season number
+    result = {
+        let reg = Regex::new(r"(?i)\s+(?:season|S)\s*(\d+)$").unwrap();
+        match reg.captures(&result)  {
+            Some(caps) => {
+                match &caps[1].parse::<i16>() {
+                    Ok(season_number) => {
+                        debug!("Successfully extract season number from explicit season number, {}", &season_number);
+                        season_number
+                    },
+                    Err(_) => {
+                        debug!("Fail to infer season number from explicit season number");
+                        1
+                    }
+                }
+            }
+            None => 1,
+        }
+    };
+
+    return Ok(result);
+}
+
+fn roman_to_int(roman: &str) -> i32 {
+    // Convert roman numeral to integer
+    let mut result = 0;
+    let mut prev_value = 0;
+
+    for c in roman.chars().rev() {
+        let value = match c {
+            'I' => 1,
+            'V' => 5,
+            'X' => 10,
+            'L' => 50,
+            'C' => 100,
+            'D' => 500,
+            'M' => 1000,
+            _ => panic!("Invalid Roman numeral"),
+        };
+
+        if value < prev_value {
+            result -= value;
+        } else {
+            result += value;
+        }
+
+        prev_value = value;
+    }
+
+    result
 }
