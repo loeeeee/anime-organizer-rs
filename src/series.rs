@@ -1,14 +1,15 @@
+use core::panic;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-use dotenvy::Result;
 use log::debug;
 use log::error;
 use log::warn;
 use log::info;
 use regex::Regex;
 use serde::Deserialize;
+use std::result::Result;
 
 #[derive(Debug, Deserialize)]
 pub struct FilterWords {
@@ -75,7 +76,7 @@ struct Subtitle {
 }
 
 impl Series {
-    pub fn new(folder_path: &str) -> Result<Series, > {
+    pub fn new(folder_path: &str) -> Result<Series, ()> {
         // Entry point for Series struct
         debug!("Folder path: {}", &folder_path);
 
@@ -113,7 +114,7 @@ impl Series {
     }
 }
 
-fn basic_file_name_cleaning(file_name: &str, filter_words: &FilterWords) -> Result<String, > { // TODO: Make this a static method
+fn basic_file_name_cleaning(file_name: &str, filter_words: &FilterWords) -> Result<String, ()> { // TODO: Make this a static method
     // Remove CC group name
     let mut result = {
         let filter_construct_middleware: Vec<String> = filter_words.cc_group.iter()
@@ -169,15 +170,32 @@ fn basic_file_name_cleaning(file_name: &str, filter_words: &FilterWords) -> Resu
     Ok(result.trim().to_string())
 }
 
-fn extract_episode_number(file_name: &str) -> Result<String, > {
+fn extract_episode_number(file_name: &str) -> Result<i16, ()> {
     let mut clean_name = basic_file_name_cleaning(&file_name, &FilterWords::load()).unwrap(); // TODO: Use cache
-    clean_name = {
-        todo!()
-    };
-    todo!()
+    
+    // Remove special characters
+    clean_name = string_remove_symbols(&clean_name).unwrap();
+
+    // Remove ENG Chars
+    clean_name = Regex::new(r"[A-Za-z]").unwrap().replace_all(&clean_name, " ").trim().to_string();
+
+    // Remove year numbers
+    clean_name = string_remove_years(&clean_name).unwrap();
+
+    // Get EP number, assuming ep number is [0,100)
+    match Regex::new(r"\d{1,2}").unwrap().find(&clean_name).unwrap().as_str().parse::<i16>() {
+        Ok(ep_number) => {
+            debug!("Find episode number {}", &ep_number);
+            Ok(ep_number)
+        },
+        Err(e) => {
+            warn!("Failed to find episode number");
+            Err(e)
+        },
+    }
 }
 
-pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Result<String, > {
+pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Result<String, ()> {
 
     let mut result = basic_file_name_cleaning(&folder_name, &filter_words).unwrap(); // TODO: Use cache in struct
 
@@ -192,7 +210,7 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
     Ok(result.trim().to_string())
 }
 
-pub fn extract_series_season_number(file_name: &str, filter_words: &FilterWords) -> Result<i16, > { // TODO: Move this function to struct
+pub fn extract_series_season_number(file_name: &str, filter_words: &FilterWords) -> Result<i16, ()> { // TODO: Move this function to struct
 
     let clean_file_name = basic_file_name_cleaning(&file_name, &filter_words).unwrap();
 
@@ -267,13 +285,13 @@ fn extract_file_extension(file_name: &str) -> FileExtensionNames {
     todo!()
 }
 
-fn string_remove_symbols(input: &str) -> Result<String, > {
+fn string_remove_symbols(input: &str) -> Result<String, ()> {
     // Removes all special characters in a string
     // let test = Regex::new(r#"""#).unwrap();
     Ok(Regex::new(r#"[!@#$%^&*()_+{}\[\]:;"'<>,.?\|`~=-\\]"#).unwrap().replace_all(&input, "").to_string())
 }
 
-pub fn string_remove_years(input: &str) -> Result<String, > {
+pub fn string_remove_years(input: &str) -> Result<String, ()> {
     let reg = Regex::new(r"\d{4}").unwrap();
     let candidates = reg.find(&input);
     let mut result = input.to_string();
@@ -287,6 +305,6 @@ pub fn string_remove_years(input: &str) -> Result<String, > {
     Ok(result.trim().to_string())
 }
 
-pub fn string_remove_duplicate_spaces(input: &str) -> Result<String, > {
+pub fn string_remove_duplicate_spaces(input: &str) -> Result<String, ()> {
     Ok(Regex::new(r"\s+").unwrap().replace_all(&input, " ").trim().to_string())
 }
