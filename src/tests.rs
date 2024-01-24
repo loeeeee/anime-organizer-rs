@@ -131,4 +131,28 @@ mod tests {
             assert_eq!(string_remove_years(&i.raw).unwrap(), i.result);
         }
     }
+
+    #[test]
+    fn string_episode_number_discovery() {
+        // Setup
+        setup();
+
+        // Load test sheet
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize)]
+        struct EpisodeNumber {
+            file_name: String,
+            episode_number: i16,
+        }
+
+        let test_sheet: Vec<EpisodeNumber> = serde_json::from_str(&load_test_sheet(&"TEST_STRING_EPISODE_NUMBER_DISCOVERY".to_string())).expect("JSON was not well-formatted");
+
+        // Run test
+        use crate::series::string_find_episode_number;
+        for i in test_sheet.iter() {
+            info!("{}: {}", &i.file_name, &i.episode_number);
+            assert_eq!(string_find_episode_number(&i.file_name).unwrap(), i.episode_number);
+        }
+    }
 }

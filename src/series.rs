@@ -116,95 +116,35 @@ impl Series {
 }
 
 fn basic_file_name_cleaning(file_name: &str, filter_words: &FilterWords) -> Result<String, ()> { // TODO: Make this a static method
-    // Remove CC group name
-    let mut result = {
-        let filter_construct_middleware: Vec<String> = filter_words.cc_group.iter()
-            .map(|i| format!("({})", i))
-            .collect();
-    
-        let combined = filter_construct_middleware.join("|");
-        let reg_str = format!(r"(?i){}(&{})*?", combined, combined);
-        let reg = Regex::new(&reg_str).expect("Invalid regex pattern");
-        reg.replace_all(&file_name, "%ReM0vE%").to_string()
-    };
-
-    // Remove meta tags
-    result = {
-        let filter_construct_middleware: Vec<String> = filter_words.meta_tag.iter()
-            .map(|i| format!("({})", i))
-            .collect();
-    
-        let combined = filter_construct_middleware.join("|");
-        let reg_str = format!(r"(?i){}(&{})*?", combined, combined);
-        let reg = Regex::new(&reg_str).expect("Invalid regex pattern");
-        reg.replace_all(&result, "%ReM0vE%").to_string()
-    };
-
-    // Remove %ReM0vE%
-    result = {
-        let reg = Regex::new(r"\[[^\]]*?(%ReM0vE%)[^\[]*?\]").unwrap();
-        reg.replace_all(&result, "").to_string()
-    };
-    result = {
-        let reg = Regex::new(r"\([^\]]*?(%ReM0vE%)[^\[]*?\)").unwrap();
-        reg.replace_all(&result, "").to_string()
-    };
+    let mut result = string_remove_filtered(&file_name).unwrap();
     debug!("After removing %ReM0vE%: {}", &result);
 
-    // Remove square brackets
-    result = {
-        let reg = Regex::new(r"\[\W*?\]").unwrap();
-        reg.replace_all(&result, "").to_string()
-    };
+    // // Remove square brackets
+    // result = {
+    //     let reg = Regex::new(r"\[\W*?\]").unwrap();
+    //     reg.replace_all(&result, "").to_string()
+    // };
 
-    debug!("After removing square brackets: {}", &result);
+    // debug!("After removing square brackets: {}", &result);
 
-    // Remove random things
-    result = {
-        let reg = Regex::new(r"\[[(\s)-_]*\]").unwrap();
-        reg.replace_all(&result, "").to_string()
-    };
+    // // Remove random things
+    // result = {
+    //     let reg = Regex::new(r"\[[(\s)-_]*\]").unwrap();
+    //     reg.replace_all(&result, "").to_string()
+    // };
     
-    debug!("After removing random things: {}", &result);
+    // debug!("After removing random things: {}", &result);
     
     // Trim
     Ok(result.trim().to_string())
 }
 
-fn extract_episode_number(file_name: &str) -> Result<i16, ParseIntError> {
-    let mut clean_name = basic_file_name_cleaning(&file_name, &FilterWords::load()).unwrap(); // TODO: Use cache
-    
-    // Remove special characters
-    clean_name = string_remove_symbols(&clean_name).unwrap();
-
-    // Remove ENG Chars
-    clean_name = Regex::new(r"[A-Za-z]").unwrap().replace_all(&clean_name, " ").trim().to_string();
-
-    // Remove year numbers
-    clean_name = string_remove_years(&clean_name).unwrap();
-
-    // Get EP number, assuming ep number is [0,100)
-    match Regex::new(r"\d{1,2}").unwrap().find(&clean_name).unwrap().as_str().parse::<i16>() {
-        Ok(ep_number) => {
-            debug!("Find episode number {}", &ep_number);
-            Ok(ep_number)
-        },
-        Err(e) => {
-            warn!("Failed to find episode number");
-            Err(e)
-        },
-    }
-}
-
 pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Result<String, ()> {
-
-    let mut result = basic_file_name_cleaning(&folder_name, &filter_words).unwrap(); // TODO: Use cache in struct
+    // Test covered
+    let mut result = string_remove_square_brackets(&string_remove_filtered(&folder_name).unwrap()).unwrap();// basic_file_name_cleaning(&folder_name, &filter_words).unwrap(); // TODO: Use cache in struct
 
     // Remove Roman numbers
-    result = {
-        let reg = Regex::new(r"(?i)\s+(I{1,3}|IV|VI{0,3}|IX|XI{0,3})$").unwrap();
-        reg.replace_all(&result, "").to_string()
-    };
+    result = string_remove_roman_number(&result).unwrap(); 
 
     debug!("After removing roman numbers: {}", &result);
 
@@ -212,8 +152,9 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
 }
 
 pub fn extract_series_season_number(file_name: &str, filter_words: &FilterWords) -> Result<i16, ()> { // TODO: Move this function to struct
+    // Test covered
 
-    let clean_file_name = basic_file_name_cleaning(&file_name, &filter_words).unwrap();
+    let clean_file_name = string_remove_square_brackets(&string_remove_filtered(&file_name).unwrap()).unwrap();
 
     // Extract from Roman numerals
     {
@@ -248,6 +189,12 @@ pub fn extract_series_season_number(file_name: &str, filter_words: &FilterWords)
     // TODO: Non-explicit season number
     Ok(1)
 }
+
+pub fn extract_episode_number() {
+    todo!()
+}
+
+// Extract helper
 
 fn roman_to_int(roman: &str) -> i32 {
     // Convert roman numeral to integer
@@ -286,13 +233,16 @@ fn extract_file_extension(file_name: &str) -> FileExtensionNames {
     todo!()
 }
 
+// String helper
+
 fn string_remove_symbols(input: &str) -> Result<String, ()> {
     // Removes all special characters in a string
     // let test = Regex::new(r#"""#).unwrap();
-    Ok(Regex::new(r#"[!@#$%^&*()_+{}\[\]:;"'<>,.?\|`~=-\\]"#).unwrap().replace_all(&input, "").to_string())
+    Ok(string_remove_duplicate_spaces(&Regex::new(r#"[!@#$%^&*()_+{}\[\]:;"'<>,.?\|`~=-\\]"#).unwrap().replace_all(&input, " ").to_string()).unwrap())
 }
 
 pub fn string_remove_years(input: &str) -> Result<String, ()> {
+    // Test covered
     let reg = Regex::new(r"\d{4}").unwrap();
     let candidates = reg.find(&input);
     let mut result = input.to_string();
@@ -303,9 +253,100 @@ pub fn string_remove_years(input: &str) -> Result<String, ()> {
             result = reg.replace(&result, " ").to_string();
         }
     };
+
+    // Remove duplicated spaces
+    result = string_remove_duplicate_spaces(&result).unwrap();
+
     Ok(result.trim().to_string())
 }
 
 pub fn string_remove_duplicate_spaces(input: &str) -> Result<String, ()> {
+    // Test covered
     Ok(Regex::new(r"\s+").unwrap().replace_all(&input, " ").trim().to_string())
+}
+
+fn string_remove_roman_number(input: &str) -> Result<String, ()> {
+    Ok(string_remove_duplicate_spaces(&Regex::new(r"(?i)\s+(I{1,3}|IV|VI{0,3}|IX|XI{0,3})$").unwrap().replace_all(&input, " ").to_string()).unwrap())
+}
+
+pub fn string_find_episode_number(file_name: &str) -> Result<i16, ParseIntError> {
+    let mut clean_name = file_name.to_string(); // basic_file_name_cleaning(&file_name, &FilterWords::load()).unwrap(); // TODO: Use cache
+    
+    // Remove special characters
+    clean_name = string_remove_symbols(&clean_name).unwrap();
+
+    // Remove ENG Chars
+    clean_name = Regex::new(r"[A-Za-z]").unwrap().replace_all(&clean_name, " ").trim().to_string();
+
+    // Remove year numbers
+    clean_name = string_remove_years(&clean_name).unwrap();
+
+    // Get EP number, assuming ep number is [0,100)
+    match Regex::new(r"\d{1,2}").unwrap().find(&clean_name).unwrap().as_str().parse::<i16>() {
+        Ok(ep_number) => {
+            debug!("Find episode number {}", &ep_number);
+            Ok(ep_number)
+        },
+        Err(e) => {
+            warn!("Failed to find episode number");
+            Err(e)
+        },
+    }
+}
+
+fn string_remove_filtered(input: &str) -> Result<String, ()> {
+    // Remove CC names
+    let filter_words = FilterWords::load();
+    let mut result = {
+        let filter_construct_middleware: Vec<String> = filter_words.cc_group.iter()
+            .map(|i| format!("({})", i))
+            .collect();
+    
+        let combined = filter_construct_middleware.join("|");
+        let reg_str = format!(r"(?i){}(&{})*?", combined, combined);
+        let reg = Regex::new(&reg_str).expect("Invalid regex pattern");
+        reg.replace_all(&input, "%ReM0vE%").to_string()
+    };
+
+    // Remove Meta Tags
+    result = {
+        let filter_construct_middleware: Vec<String> = filter_words.meta_tag.iter()
+            .map(|i| format!("({})", i))
+            .collect();
+    
+        let combined = filter_construct_middleware.join("|");
+        let reg_str = format!(r"(?i){}(&{})*?", combined, combined);
+        let reg = Regex::new(&reg_str).expect("Invalid regex pattern");
+        reg.replace_all(&result, "%ReM0vE%").to_string()
+    };
+
+    // Remove REMOVE
+    result = {
+        let reg = Regex::new(r"\[[^\]]*?(%ReM0vE%)[^\[]*?\]").unwrap();
+        reg.replace_all(&result, " ").to_string()
+    };
+    result = {
+        let reg = Regex::new(r"\([^\]]*?(%ReM0vE%)[^\[]*?\)").unwrap();
+        reg.replace_all(&result, " ").to_string()
+    };
+    
+    // Remove duplicated spaces
+    result = string_remove_duplicate_spaces(&result).unwrap();
+
+    debug!("After removing filtered words: {}", &result);
+
+    Ok(result)
+}
+
+fn string_remove_square_brackets(input: &str) -> Result<String, ()> {
+     // Remove square brackets
+     let mut result = {
+        let reg = Regex::new(r"\[\W*?\]").unwrap();
+        reg.replace_all(&input, " ").to_string()
+    };
+
+    // Remove duplicated spaces
+    result = string_remove_duplicate_spaces(&result).unwrap();
+
+    Ok(result)
 }
