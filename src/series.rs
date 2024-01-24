@@ -115,33 +115,9 @@ impl Series {
     }
 }
 
-fn basic_file_name_cleaning(file_name: &str, filter_words: &FilterWords) -> Result<String, ()> { // TODO: Make this a static method
-    let mut result = string_remove_filtered(&file_name).unwrap();
-    debug!("After removing %ReM0vE%: {}", &result);
-
-    // // Remove square brackets
-    // result = {
-    //     let reg = Regex::new(r"\[\W*?\]").unwrap();
-    //     reg.replace_all(&result, "").to_string()
-    // };
-
-    // debug!("After removing square brackets: {}", &result);
-
-    // // Remove random things
-    // result = {
-    //     let reg = Regex::new(r"\[[(\s)-_]*\]").unwrap();
-    //     reg.replace_all(&result, "").to_string()
-    // };
-    
-    // debug!("After removing random things: {}", &result);
-    
-    // Trim
-    Ok(result.trim().to_string())
-}
-
 pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Result<String, ()> {
     // Test covered
-    let mut result = string_remove_square_brackets(&string_remove_filtered(&folder_name).unwrap()).unwrap();// basic_file_name_cleaning(&folder_name, &filter_words).unwrap(); // TODO: Use cache in struct
+    let mut result = string_remove_square_brackets(&string_remove_filtered(&folder_name).unwrap()).unwrap().trim().to_string();// basic_file_name_cleaning(&folder_name, &filter_words).unwrap(); // TODO: Use cache in struct
 
     // Remove Roman numbers
     result = string_remove_roman_number(&result).unwrap(); 
@@ -153,8 +129,7 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
 
 pub fn extract_series_season_number(file_name: &str, filter_words: &FilterWords) -> Result<i16, ()> { // TODO: Move this function to struct
     // Test covered
-
-    let clean_file_name = string_remove_square_brackets(&string_remove_filtered(&file_name).unwrap()).unwrap();
+    let clean_file_name = string_remove_square_brackets(&string_remove_filtered(&file_name).unwrap()).unwrap().trim().to_string();
 
     // Extract from Roman numerals
     {
