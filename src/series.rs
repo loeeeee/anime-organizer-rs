@@ -19,6 +19,7 @@ pub struct FilterWords {
 
 impl FilterWords {
     pub fn load() -> FilterWords {
+        // TODO: Cache Load function
         let filter_words_file_path = "./static/filter_words.yaml";
         let mut filter_words_string = String::new();
         match File::open(filter_words_file_path).unwrap().read_to_string(&mut filter_words_string) {
@@ -110,8 +111,6 @@ impl Series {
 
         todo!()
     }
-
-
 }
 
 fn basic_file_name_cleaning(file_name: &str, filter_words: &FilterWords) -> Result<String, > { // TODO: Make this a static method
@@ -123,7 +122,7 @@ fn basic_file_name_cleaning(file_name: &str, filter_words: &FilterWords) -> Resu
     
         let combined = filter_construct_middleware.join("|");
         let reg_str = format!(r"(?i){}(&{})*?", combined, combined);
-        let reg = Regex::new(&reg_str).expect("Invalid regex pattern"); // Todo: Add ignore case
+        let reg = Regex::new(&reg_str).expect("Invalid regex pattern");
         reg.replace_all(&file_name, "%ReM0vE%").to_string()
     };
 
@@ -135,7 +134,7 @@ fn basic_file_name_cleaning(file_name: &str, filter_words: &FilterWords) -> Resu
     
         let combined = filter_construct_middleware.join("|");
         let reg_str = format!(r"(?i){}(&{})*?", combined, combined);
-        let reg = Regex::new(&reg_str).expect("Invalid regex pattern"); // Todo: Add ignore case
+        let reg = Regex::new(&reg_str).expect("Invalid regex pattern");
         reg.replace_all(&result, "%ReM0vE%").to_string()
     };
 
@@ -171,6 +170,10 @@ fn basic_file_name_cleaning(file_name: &str, filter_words: &FilterWords) -> Resu
 }
 
 fn extract_episode_number(file_name: &str) -> Result<String, > {
+    let mut clean_name = basic_file_name_cleaning(&file_name, &FilterWords::load()).unwrap(); // TODO: Use cache
+    clean_name = {
+        todo!()
+    };
     todo!()
 }
 
@@ -254,4 +257,36 @@ fn roman_to_int(roman: &str) -> i32 {
     }
 
     result
+}
+
+enum FileExtensionNames {
+
+}
+
+fn extract_file_extension(file_name: &str) -> FileExtensionNames {
+    todo!()
+}
+
+fn string_remove_symbols(input: &str) -> Result<String, > {
+    // Removes all special characters in a string
+    // let test = Regex::new(r#"""#).unwrap();
+    Ok(Regex::new(r#"[!@#$%^&*()_+{}\[\]:;"'<>,.?\|`~=-\\]"#).unwrap().replace_all(&input, "").to_string())
+}
+
+fn string_remove_years(input: &str) -> Result<String, > {
+    let reg = Regex::new(r"\d{4}").unwrap();
+    let candidates = reg.find(&input);
+    let mut result = input.to_string();
+    for year_candidate in candidates  {
+        let year = year_candidate.as_str().parse::<i32>().unwrap();
+        if year >= 1928 && year <= 2030 {
+            let reg = Regex::new(&year.to_string()).unwrap();
+            reg.replace(&result, " ");
+        }
+    };
+    Ok(result.trim().to_string())
+}
+
+pub fn string_remove_duplicate_space(input: &str) -> Result<String, > {
+    Ok(Regex::new(r"\s+").unwrap().replace_all(&input, " ").trim().to_string())
 }

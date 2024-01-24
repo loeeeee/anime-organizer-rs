@@ -83,4 +83,28 @@ mod tests {
             assert_eq!(crate::series::extract_series_season_number(&i.folder_name, &filter_words).unwrap().to_string(), i.season_number.to_string());
         };
     }
+
+    #[test]
+    fn string_duplication_space_removal() {
+        // Setup
+        setup();
+
+        // Load test sheet
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize)]
+        struct SpacedString {
+            raw: String,
+            result: String,
+        }
+
+        let test_sheet: Vec<SpacedString> = serde_json::from_str(&load_test_sheet(&"TEST_STRING_SPACE_DEDUPLICATION".to_string())).expect("JSON was not well-formatted");
+
+        // Run test
+        use crate::series::string_remove_duplicate_space;
+        for i in test_sheet.iter() {
+            info!("{}: {}", &i.raw, &i.result);
+            assert_eq!(string_remove_duplicate_space(&i.raw).unwrap(), i.result);
+        }
+    }
 }

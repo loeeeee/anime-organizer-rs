@@ -1,0 +1,10 @@
+[
+    {
+        "raw": "dfioajdfoiasn       foenaf  djklafnmasdk   fmomaweoi",
+        "result" :"dfioajdfoiasn foenaf djklafnmasdk fmomaweoi"
+    },
+        {
+        "raw": "  foena fdjkl    afnmasdkfmom                                                          aweoi",
+        "result" :"foena fdjkl afnmasdkfmom aweoi"
+    }
+]
