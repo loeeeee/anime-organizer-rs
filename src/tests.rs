@@ -101,10 +101,34 @@ mod tests {
         let test_sheet: Vec<SpacedString> = serde_json::from_str(&load_test_sheet(&"TEST_STRING_SPACE_DEDUPLICATION".to_string())).expect("JSON was not well-formatted");
 
         // Run test
-        use crate::series::string_remove_duplicate_space;
+        use crate::series::string_remove_duplicate_spaces;
         for i in test_sheet.iter() {
             info!("{}: {}", &i.raw, &i.result);
-            assert_eq!(string_remove_duplicate_space(&i.raw).unwrap(), i.result);
+            assert_eq!(string_remove_duplicate_spaces(&i.raw).unwrap(), i.result);
+        }
+    }
+
+    #[test]
+    fn string_year_removal() {
+        // Setup
+        setup();
+
+        // Load test sheet
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize)]
+        struct SpacedString {
+            raw: String,
+            result: String,
+        }
+
+        let test_sheet: Vec<SpacedString> = serde_json::from_str(&load_test_sheet(&"TEST_STRING_YEAR_REMOVAL".to_string())).expect("JSON was not well-formatted");
+
+        // Run test
+        use crate::series::string_remove_years;
+        for i in test_sheet.iter() {
+            info!("{}: {}", &i.raw, &i.result);
+            assert_eq!(string_remove_years(&i.raw).unwrap(), i.result);
         }
     }
 }

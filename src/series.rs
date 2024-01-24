@@ -273,7 +273,7 @@ fn string_remove_symbols(input: &str) -> Result<String, > {
     Ok(Regex::new(r#"[!@#$%^&*()_+{}\[\]:;"'<>,.?\|`~=-\\]"#).unwrap().replace_all(&input, "").to_string())
 }
 
-fn string_remove_years(input: &str) -> Result<String, > {
+pub fn string_remove_years(input: &str) -> Result<String, > {
     let reg = Regex::new(r"\d{4}").unwrap();
     let candidates = reg.find(&input);
     let mut result = input.to_string();
@@ -281,12 +281,12 @@ fn string_remove_years(input: &str) -> Result<String, > {
         let year = year_candidate.as_str().parse::<i32>().unwrap();
         if year >= 1928 && year <= 2030 {
             let reg = Regex::new(&year.to_string()).unwrap();
-            reg.replace(&result, " ");
+            result = reg.replace(&result, " ").to_string();
         }
     };
     Ok(result.trim().to_string())
 }
 
-pub fn string_remove_duplicate_space(input: &str) -> Result<String, > {
+pub fn string_remove_duplicate_spaces(input: &str) -> Result<String, > {
     Ok(Regex::new(r"\s+").unwrap().replace_all(&input, " ").trim().to_string())
 }
