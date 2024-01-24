@@ -117,7 +117,16 @@ impl Series {
 
 pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Result<String, ()> {
     // Test covered
-    let mut result = string_remove_square_brackets(&string_remove_filtered(&folder_name).unwrap()).unwrap().trim().to_string();// basic_file_name_cleaning(&folder_name, &filter_words).unwrap(); // TODO: Use cache in struct
+    // let mut result = string_remove_square_brackets(&string_remove_filtered(&folder_name).unwrap()).unwrap().trim().to_string();// basic_file_name_cleaning(&folder_name, &filter_words).unwrap(); // TODO: Use cache in struct
+    let mut result = {
+        let mut middleware = string_remove_filtered(&folder_name).unwrap();
+        middleware = string_remove_years(&middleware).unwrap();
+        middleware = string_remove_roman_number(&middleware).unwrap();
+        middleware = string_remove_episode_range(&middleware).unwrap();
+        middleware = string_remove_empty_brackets(&middleware).unwrap();
+        middleware = string_remove_duplicate_spaces(&middleware).unwrap();
+        middleware.trim().to_string()
+    };
 
     // Remove Roman numbers
     result = string_remove_roman_number(&result).unwrap(); 
@@ -213,7 +222,7 @@ fn extract_file_extension(file_name: &str) -> FileExtensionNames {
 fn string_remove_symbols(input: &str) -> Result<String, ()> {
     // Removes all special characters in a string
     // let test = Regex::new(r#"""#).unwrap();
-    Ok(string_remove_duplicate_spaces(&Regex::new(r#"[!@#$%^&*()_+{}\[\]:;"'<>,.?\|`~=-\\]"#).unwrap().replace_all(&input, " ").to_string()).unwrap())
+    Ok(Regex::new(r#"[!@#$%^&*()_+{}\[\]:;"'<>,.?\|`~=-\\]"#).unwrap().replace_all(&input, " ").to_string())
 }
 
 pub fn string_remove_years(input: &str) -> Result<String, ()> {
@@ -241,7 +250,7 @@ pub fn string_remove_duplicate_spaces(input: &str) -> Result<String, ()> {
 }
 
 fn string_remove_roman_number(input: &str) -> Result<String, ()> {
-    Ok(string_remove_duplicate_spaces(&Regex::new(r"(?i)\s+(I{1,3}|IV|VI{0,3}|IX|XI{0,3})$").unwrap().replace_all(&input, " ").to_string()).unwrap())
+    Ok(Regex::new(r"(?i)\s+(I{1,3}|IV|VI{0,3}|IX|XI{0,3})$").unwrap().replace_all(&input, " ").to_string())
 }
 
 pub fn string_find_episode_number(file_name: &str) -> Result<i16, ParseIntError> {
@@ -304,9 +313,6 @@ fn string_remove_filtered(input: &str) -> Result<String, ()> {
         let reg = Regex::new(r"\([^\]]*?(%ReM0vE%)[^\[]*?\)").unwrap();
         reg.replace_all(&result, " ").to_string()
     };
-    
-    // Remove duplicated spaces
-    result = string_remove_duplicate_spaces(&result).unwrap();
 
     debug!("After removing filtered words: {}", &result);
 
@@ -314,14 +320,24 @@ fn string_remove_filtered(input: &str) -> Result<String, ()> {
 }
 
 fn string_remove_square_brackets(input: &str) -> Result<String, ()> {
-     // Remove square brackets
-     let mut result = {
-        let reg = Regex::new(r"\[\W*?\]").unwrap();
-        reg.replace_all(&input, " ").to_string()
-    };
+     // Remove square brackets with content inside (Brutal)
+     // TODO: Not using this
+    Ok(Regex::new(r"\[\W*?\]").unwrap().replace_all(&input, " ").to_string())
+}
 
-    // Remove duplicated spaces
-    result = string_remove_duplicate_spaces(&result).unwrap();
+fn string_remove_episode_range(input: &str) -> Result<String, ()> {
+    // Remove things like [01-13]
+    let mut result = Regex::new(r"\d{1,3}-\d{1,3}").unwrap().replace_all(&input, " ").to_string();
+
+    // Remove empty brackets
+    result = string_remove_empty_brackets(&result).unwrap();
 
     Ok(result)
+}
+
+fn string_remove_empty_brackets(input: &str) -> Result<String, ()> {
+    // Remove empty brackets like [ ] ( ) {  }
+    // Naive algorithm is used
+    // TODO: Change algorithm to allow nested empty brackets
+    Ok(Regex::new(r"[\[\({})]\s*?[\]\)}]").unwrap().replace_all(&input, " ").to_string())
 }
