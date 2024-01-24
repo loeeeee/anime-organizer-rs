@@ -2,6 +2,7 @@ use core::panic;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
+use std::num::ParseIntError;
 use std::path::PathBuf;
 use log::debug;
 use log::error;
@@ -105,7 +106,7 @@ impl Series {
                 name
             },
             Err(e) => {
-                warn!("Failed to extract series name, due to {}", &e.to_string());
+                warn!("Failed to extract series name");
                 panic!("")
             }
         };
@@ -170,7 +171,7 @@ fn basic_file_name_cleaning(file_name: &str, filter_words: &FilterWords) -> Resu
     Ok(result.trim().to_string())
 }
 
-fn extract_episode_number(file_name: &str) -> Result<i16, ()> {
+fn extract_episode_number(file_name: &str) -> Result<i16, ParseIntError> {
     let mut clean_name = basic_file_name_cleaning(&file_name, &FilterWords::load()).unwrap(); // TODO: Use cache
     
     // Remove special characters
