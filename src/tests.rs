@@ -143,7 +143,7 @@ mod tests {
         #[derive(Serialize, Deserialize)]
         struct EpisodeNumber {
             file_name: String,
-            episode_number: i16,
+            episode_number: u16,
         }
 
         let test_sheet: Vec<EpisodeNumber> = serde_json::from_str(&load_test_sheet(&"TEST_STRING_EPISODE_NUMBER_DISCOVERY".to_string())).expect("JSON was not well-formatted");
@@ -152,7 +152,7 @@ mod tests {
         use crate::series::string_find_episode_number;
         for i in test_sheet.iter() {
             info!("{}: {}", &i.file_name, &i.episode_number);
-            assert_eq!(string_find_episode_number(&i.file_name).unwrap(), i.episode_number);
+            assert_eq!(string_find_episode_number(&i.file_name).unwrap()[0], i.episode_number);
         }
     }
 }

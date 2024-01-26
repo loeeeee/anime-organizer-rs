@@ -1,7 +1,10 @@
 use core::panic;
+use std::error::Error;
 use std::fs;
 use std::fs::File;
+use std::hash::Hash;
 use std::io::Read;
+use std::collections::HashSet;
 use std::num::ParseIntError;
 use std::path::PathBuf;
 use log::debug;
@@ -65,10 +68,20 @@ struct Season {
     episodes: Vec<Episode>,
 }
 
-struct Episode {
-    sequence: i16,
+pub struct Episode {
+    sequence: u16,
     location: String,
     subtitles: Vec<Subtitle>,
+}
+
+impl Default for Episode {
+    fn default() -> Self {
+        Self {
+            sequence: 0,
+            location: "".to_string(),
+            subtitles: Vec::new()
+        }
+    }
 }
 
 struct Subtitle {
@@ -136,7 +149,7 @@ pub fn extract_series_name(folder_name: &str, filter_words: &FilterWords) -> Res
     Ok(result.trim().to_string())
 }
 
-pub fn extract_series_season_number(file_name: &str, filter_words: &FilterWords) -> Result<i16, ()> { // TODO: Move this function to struct
+pub fn extract_series_season_number(file_name: &str, filter_words: &FilterWords) -> Result<u16, ()> { // TODO: Move this function to struct
     // Test covered
     let clean_file_name = string_remove_square_brackets(&string_remove_filtered(&file_name).unwrap()).unwrap().trim().to_string();
 
@@ -144,7 +157,7 @@ pub fn extract_series_season_number(file_name: &str, filter_words: &FilterWords)
     {
         let reg = Regex::new(r"(?i)\s+(I{1,3}|IV|VI{0,3}|IX|XI{0,3})$").unwrap();
         match reg.captures(&clean_file_name) {
-            Some(caps) => match roman_to_int(&caps[1]).try_into() {
+            Some(caps) => match roman_to_int(&caps[1]) {
                 Ok(season_number) => {
                     debug!("Successfully extract season number from Roman numeral, {}", &season_number);
                     return Ok(season_number);
@@ -159,7 +172,7 @@ pub fn extract_series_season_number(file_name: &str, filter_words: &FilterWords)
     {
         let reg = Regex::new(r"(?i)\s+(?:season|S)\s*(\d+)$").unwrap();
         match reg.captures(&clean_file_name) {
-            Some(caps) => match &caps[1].parse::<i16>() {
+            Some(caps) => match &caps[1].parse::<u16>() {
                 Ok(season_number) => {
                     debug!("Successfully extract season number from explicit season number, {}", &season_number);
                     return Ok(*season_number);
@@ -174,15 +187,56 @@ pub fn extract_series_season_number(file_name: &str, filter_words: &FilterWords)
     Ok(1)
 }
 
-pub fn extract_episode_number() {
+enum EpisodeType {
+    Main(u16),
+    Extra(u16)    
+}
+
+fn extract_episode_type() {
+    todo!()
+}
+
+pub fn extract_episode_number(file_names: Vec<String>) -> Option<Vec<Episode>> {
+    // This function deals with a list of file names (0 to inf), build context to find the unique numbers in the list of files,
+    // and return a list of files with their episode number.
+    match file_names.len() {
+        0 => {
+            return None;
+        },
+        1 => {
+            // Extract episode number without context
+            // Make the assumption that the correct one is the first one
+            // TODO: Improve algorithm
+            match string_find_episode_number(&file_names[0]) {
+                Ok(ep_number) => {
+                    debug!("Find episode number {}", &ep_number[0]);
+                    return Some(vec![Episode{sequence: ep_number[0], ..Default::default() }]);
+                },
+                Err(_) => {
+                    warn!("Failed to find episode number.");
+                    return None
+                }
+            }
+        },
+        _ => {
+            // Extract episode number with context
+            let mut context = HashSet::<String>::new();
+            for file_name in file_names {
+
+            }
+
+            todo!()
+        }
+    }
+
     todo!()
 }
 
 // Extract helper
 
-fn roman_to_int(roman: &str) -> i32 {
-    // Convert roman numeral to integer
-    let mut result = 0;
+/// Convert roman numeral to integer
+fn roman_to_int(roman: &str) -> Result<u16, ()> {
+    let mut result: i32 = 0;
     let mut prev_value = 0;
 
     for c in roman.chars().rev() {
@@ -194,7 +248,10 @@ fn roman_to_int(roman: &str) -> i32 {
             'C' => 100,
             'D' => 500,
             'M' => 1000,
-            _ => panic!("Invalid Roman numeral"),
+            _ => {
+                warn!("Failed to parse number in roman numeral format");
+                return Err(());
+            },
         };
 
         if value < prev_value {
@@ -206,7 +263,7 @@ fn roman_to_int(roman: &str) -> i32 {
         prev_value = value;
     }
 
-    result
+    Ok(result.try_into().unwrap())
 }
 
 enum FileExtensionNames {
@@ -219,12 +276,12 @@ fn extract_file_extension(file_name: &str) -> FileExtensionNames {
 
 // String helper
 
-fn string_remove_symbols(input: &str) -> Result<String, ()> {
-    // Removes all special characters in a string
-    // let test = Regex::new(r#"""#).unwrap();
+/// Removes all special characters in a string
+fn string_remove_special_characters(input: &str) -> Result<String, ()> {
     Ok(Regex::new(r#"[!@#$%^&*()_+{}\[\]:;"'<>,.?\|`~=-\\]"#).unwrap().replace_all(&input, " ").to_string())
 }
 
+/// Removes year numbers from string ranging from 1928 to 2030
 pub fn string_remove_years(input: &str) -> Result<String, ()> {
     // Test covered
     let reg = Regex::new(r"\d{4}").unwrap();
@@ -244,40 +301,60 @@ pub fn string_remove_years(input: &str) -> Result<String, ()> {
     Ok(result.trim().to_string())
 }
 
+/// Removes duplicate spaces in the string
 pub fn string_remove_duplicate_spaces(input: &str) -> Result<String, ()> {
     // Test covered
     Ok(Regex::new(r"\s+").unwrap().replace_all(&input, " ").trim().to_string())
 }
 
+/// Remove roman numerals ranging from 1 to 13 from the string
 fn string_remove_roman_number(input: &str) -> Result<String, ()> {
-    Ok(Regex::new(r"(?i)\s+(I{1,3}|IV|VI{0,3}|IX|XI{0,3})$").unwrap().replace_all(&input, " ").to_string())
+    Ok(Regex::new(r"(?i)\s+M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$").unwrap().replace_all(&input, " ").to_string())
 }
 
-pub fn string_find_episode_number(file_name: &str) -> Result<i16, ParseIntError> {
-    let mut clean_name = file_name.to_string(); // basic_file_name_cleaning(&file_name, &FilterWords::load()).unwrap(); // TODO: Use cache
-    
-    // Remove special characters
-    clean_name = string_remove_symbols(&clean_name).unwrap();
+pub fn string_find_episode_number(file_name: &str) -> Result<Vec<u16>, ParseIntError> {
+    let mut result = Vec::<u16>::new();
 
-    // Remove ENG Chars
-    clean_name = Regex::new(r"[A-Za-z]").unwrap().replace_all(&clean_name, " ").trim().to_string();
+    let mut clean_name = {
+        let mut middleware = string_remove_filtered(&file_name).unwrap();
+        middleware = string_remove_years(&middleware).unwrap();
+        middleware = string_remove_empty_brackets(&middleware).unwrap();
+        middleware = string_remove_duplicate_spaces(&middleware).unwrap();
+        middleware.trim().to_string()
+    };
+    // Clean name should contain:
+    // Episode number and episode name (may contain numbers).
 
-    // Remove year numbers
-    clean_name = string_remove_years(&clean_name).unwrap();
-
-    // Get EP number, assuming ep number is [0,100)
-    match Regex::new(r"\d{1,2}").unwrap().find(&clean_name).unwrap().as_str().parse::<i16>() {
-        Ok(ep_number) => {
-            debug!("Find episode number {}", &ep_number);
-            Ok(ep_number)
-        },
-        Err(e) => {
-            warn!("Failed to find episode number");
-            Err(e)
-        },
+    // Deal with roman numerals first
+    for roman_numeral in Regex::new(r"(?i)\s+M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$").unwrap().find(&clean_name) {
+        match roman_to_int(&roman_numeral.as_str()) {
+            Ok(episode_number_guess) => {
+                debug!("Find episode number candidates {}", episode_number_guess);
+                result.push(episode_number_guess);
+            },
+            Err(_) => {
+                warn!("Failed to parse roman numerals");
+            },
+        }
     }
+
+    // Deal with common numbers
+    for common_number in Regex::new(r"\d{1,2}").unwrap().find(&clean_name) {
+        match common_number.as_str().parse::<u16>() {
+            Ok(success) => {
+                debug!("Find episode number candidate {}", success);
+                result.push(success)
+            },
+            Err(_) => {
+                warn!("Failed to parse common numbers");
+            },
+        }
+    }
+
+    Ok(result)
 }
 
+/// Remove CC names and Meta tags in given string
 fn string_remove_filtered(input: &str) -> Result<String, ()> {
     // Remove CC names
     let filter_words = FilterWords::load();
@@ -319,14 +396,14 @@ fn string_remove_filtered(input: &str) -> Result<String, ()> {
     Ok(result)
 }
 
+/// Remove square brackets with content inside (Brutal)
 fn string_remove_square_brackets(input: &str) -> Result<String, ()> {
-     // Remove square brackets with content inside (Brutal)
      // TODO: Not using this
     Ok(Regex::new(r"\[\W*?\]").unwrap().replace_all(&input, " ").to_string())
 }
 
+/// Remove things like [01-13]
 fn string_remove_episode_range(input: &str) -> Result<String, ()> {
-    // Remove things like [01-13]
     let mut result = Regex::new(r"\d{1,3}-\d{1,3}").unwrap().replace_all(&input, " ").to_string();
 
     // Remove empty brackets
@@ -335,9 +412,14 @@ fn string_remove_episode_range(input: &str) -> Result<String, ()> {
     Ok(result)
 }
 
+/// Remove empty brackets like [ ] ( ) {  }
+/// Naive algorithm is used
 fn string_remove_empty_brackets(input: &str) -> Result<String, ()> {
-    // Remove empty brackets like [ ] ( ) {  }
-    // Naive algorithm is used
     // TODO: Change algorithm to allow nested empty brackets
     Ok(Regex::new(r"[\[\({})]\s*?[\]\)}]").unwrap().replace_all(&input, " ").to_string())
+}
+
+/// Removes english characters from string
+fn string_remove_english_characters(input: &str) -> Result<String, ()> {
+    Ok(Regex::new(r"[A-Za-z]").unwrap().replace_all(&input, " ").trim().to_string())
 }
