@@ -12,7 +12,7 @@ def create_folder_structure(data, base_path):
             create_folder_structure(item, item_path)
         elif item_type == 'file':
             with open(item_path, 'w') as file:
-                pass  # Create an empty file
+                file.write(item_name) # Write file name inside for easy CTRL-C and CTRL-V
 
 def main():
     json_file = input("Enter the path of the JSON file: ")
