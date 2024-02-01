@@ -363,6 +363,7 @@ fn string_find_episode_number(file_name: &str) -> Result<Vec<u16>, ()> {
         middleware = string_remove_years(&middleware).unwrap();
         middleware = string_remove_empty_brackets(&middleware).unwrap();
         middleware = string_remove_duplicate_spaces(&middleware).unwrap();
+        middleware = string_remove_file_extension(&middleware);
         middleware.trim().to_string()
     };
     // Clean name should contain:
@@ -471,7 +472,7 @@ fn string_remove_english_characters(input: &str) -> Result<String, ()> {
 
 /// Removes file extension name from string
 fn string_remove_file_extension(input: &str) -> String {
-    todo!()
+    Regex::new(r"\.\w{2,4}$").unwrap().replace_all(&input, " ").trim().to_string()
 }
 
 #[cfg(test)]
