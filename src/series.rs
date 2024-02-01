@@ -1,10 +1,8 @@
 use core::panic;
-use std::error::Error;
 use std::fs;
 use std::fs::File;
-use std::hash::Hash;
 use std::io::Read;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::num::ParseIntError;
 use std::path::PathBuf;
 use log::debug;
@@ -199,6 +197,7 @@ fn extract_episode_type() {
 pub fn extract_episode_number(file_names: Vec<String>) -> Option<Vec<Episode>> {
     // This function deals with a list of file names (0 to inf), build context to find the unique numbers in the list of files,
     // and return a list of files with their episode number.
+    let file_names_length = file_names.len() as u16; // TODO: make it safer
     match file_names.len() {
         0 => {
             return None;
@@ -220,16 +219,60 @@ pub fn extract_episode_number(file_names: Vec<String>) -> Option<Vec<Episode>> {
         },
         _ => {
             // Extract episode number with context
-            let mut context = HashSet::<String>::new();
-            for file_name in file_names {
 
+            // Extract context in the first pass
+            let mut context = HashMap::<u16, u16>::new();
+            for file_name in &file_names {
+                match string_find_episode_number(&file_name) {
+                    Ok(candidates) => {
+                        for candidate in candidates {
+                            context.entry(candidate).and_modify(|counter| *counter += 1).or_insert(1);
+                        }
+                    },
+                    Err(_) => {
+                        warn!("Failed to extract episode number from file name {}", &file_name);
+                        continue;
+                    }
+                };
             }
 
-            todo!()
+            // Indexing context using Inverted document frequency
+            let mut indexed_context = HashMap::<u16, f32>::new();
+            let total_document_count: u16 = file_names_length;
+            for (key, frequency) in context.iter() {
+                let inverted_document_frequency = frequency.clone() as f32 / total_document_count.clone() as f32;
+                indexed_context.insert(key.clone(), inverted_document_frequency);
+            }
+            
+            // Find episode number based on reg and context
+            let mut result: Vec<Episode> = Vec::new();
+            for file_name in &file_names {
+                match string_find_episode_number(&file_name) {
+                    Ok(candidates) => {
+                        let mut scoring: Vec<(f32, u16)> = Vec::new(); // Storing file_name related episode_number in new vector
+                        for candidate in candidates {
+                            let score = match indexed_context.get(&candidate) {
+                                Some(sth) => *sth,
+                                None => {
+                                    error!("Inconsistent find episode number function.");
+                                    continue
+                                }
+                            };
+                            scoring.push((score, candidate));
+                        }
+                        scoring.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                        result.push(Episode{sequence: scoring[0].1,..Default::default()})
+                    },
+                    Err(_) => {
+                        warn!("Failed to find any  episode number in {}", &file_name);
+                        continue
+                    },
+                }
+            }
+
+            return Some(result);
         }
     }
-
-    todo!()
 }
 
 // Extract helper
@@ -282,7 +325,7 @@ fn string_remove_special_characters(input: &str) -> Result<String, ()> {
 }
 
 /// Removes year numbers from string ranging from 1928 to 2030
-pub fn string_remove_years(input: &str) -> Result<String, ()> {
+fn string_remove_years(input: &str) -> Result<String, ()> {
     // Test covered
     let reg = Regex::new(r"\d{4}").unwrap();
     let candidates = reg.find(&input);
@@ -302,7 +345,7 @@ pub fn string_remove_years(input: &str) -> Result<String, ()> {
 }
 
 /// Removes duplicate spaces in the string
-pub fn string_remove_duplicate_spaces(input: &str) -> Result<String, ()> {
+fn string_remove_duplicate_spaces(input: &str) -> Result<String, ()> {
     // Test covered
     Ok(Regex::new(r"\s+").unwrap().replace_all(&input, " ").trim().to_string())
 }
@@ -312,7 +355,7 @@ fn string_remove_roman_number(input: &str) -> Result<String, ()> {
     Ok(Regex::new(r"(?i)\s+M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$").unwrap().replace_all(&input, " ").to_string())
 }
 
-pub fn string_find_episode_number(file_name: &str) -> Result<Vec<u16>, ParseIntError> {
+fn string_find_episode_number(file_name: &str) -> Result<Vec<u16>, ()> {
     let mut result = Vec::<u16>::new();
 
     let mut clean_name = {
@@ -326,8 +369,8 @@ pub fn string_find_episode_number(file_name: &str) -> Result<Vec<u16>, ParseIntE
     // Episode number and episode name (may contain numbers).
 
     // Deal with roman numerals first
-    for roman_numeral in Regex::new(r"(?i)\s+M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$").unwrap().find(&clean_name) {
-        match roman_to_int(&roman_numeral.as_str()) {
+    for (_, [roman_numeral]) in Regex::new(r"(?i)\s+M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$").unwrap().captures_iter(&clean_name).map(|c| c.extract()) {
+        match roman_to_int(&roman_numeral) {
             Ok(episode_number_guess) => {
                 debug!("Find episode number candidates {}", episode_number_guess);
                 result.push(episode_number_guess);
@@ -339,8 +382,10 @@ pub fn string_find_episode_number(file_name: &str) -> Result<Vec<u16>, ParseIntE
     }
 
     // Deal with common numbers
-    for common_number in Regex::new(r"\d{1,2}").unwrap().find(&clean_name) {
-        match common_number.as_str().parse::<u16>() {
+    for (_ ,[common_number]) in Regex::new(r#"[[[:ascii:]]\[\({](\d{1,2})[[[:ascii:]]\]\)}]"#).unwrap().captures_iter(&clean_name).map(|c| c.extract()) {
+        debug!("{}", &common_number);
+        // result.push(common_number);
+        match common_number.parse::<u16>() {
             Ok(success) => {
                 debug!("Find episode number candidate {}", success);
                 result.push(success)
@@ -422,4 +467,199 @@ fn string_remove_empty_brackets(input: &str) -> Result<String, ()> {
 /// Removes english characters from string
 fn string_remove_english_characters(input: &str) -> Result<String, ()> {
     Ok(Regex::new(r"[A-Za-z]").unwrap().replace_all(&input, " ").trim().to_string())
+}
+
+/// Removes file extension name from string
+fn string_remove_file_extension(input: &str) -> String {
+    todo!()
+}
+
+#[cfg(test)]
+mod tests {
+    use core::panic;
+    use std::{fs, io::Read};
+
+    use anime_organizer_rs::load_env_var;
+    use log::{warn, error, info};
+    use crate::series::{Series, FilterWords};
+
+    fn setup() {
+        // Load env
+        dotenvy::from_filename("test.env").unwrap();
+
+        // Init logger
+        // env_logger::init();
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
+    fn load_test_sheet(test_sheet_name: &str) -> String {
+        let tests_series_names_path = load_env_var(&test_sheet_name).unwrap();
+        info!("Series Name test sheet: {}", &tests_series_names_path);
+
+        match fs::read_to_string(tests_series_names_path) {
+            Ok(tests) => {
+                info!("Successfully read the test sheet.");
+                tests
+            },
+            Err(e) => {
+                error!("Failed to load test sheet, due to {}.", &e);
+                panic!();
+            }
+        }
+    }
+    
+    #[test]
+    fn series_name_extraction() {
+        // Setup
+        setup();
+        
+        // Load test sheet        
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize)]
+        struct SeriesName {
+            folder_name: String,
+            series_name: String,
+        }
+
+        let test_sheet: Vec<SeriesName> = serde_json::from_str(&load_test_sheet(&"TEST_SERIES_NAME".to_string())).expect("JSON was not well-formatted");
+        
+        // Filter words
+        let filter_words = FilterWords::load();
+
+        // Run test
+        for i in test_sheet.iter() {
+            info!("{}: {}", &i.folder_name, &i.series_name);
+            assert_eq!(super::extract_series_name(&i.folder_name, &filter_words).unwrap(), i.series_name.to_string());
+        };
+    }
+
+    #[test]
+    fn series_season_number_extraction() {
+        // Setup
+        setup();
+
+        // Load test sheet
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize)]
+        struct SeasonNumber {
+            folder_name: String,
+            season_number: i16,
+        }
+
+        let test_sheet: Vec<SeasonNumber> = serde_json::from_str(&load_test_sheet(&"TEST_SERIES_SEASON_NUMBER".to_string())).expect("JSON was not well-formatted");
+
+        // Filter words
+        let filter_words = FilterWords::load();
+
+        // Run test
+        for i in test_sheet.iter() {
+            info!("{}: {}", &i.folder_name, &i.season_number);
+            assert_eq!(super::extract_series_season_number(&i.folder_name, &filter_words).unwrap().to_string(), i.season_number.to_string());
+        };
+    }
+
+    #[test]
+    fn string_duplication_space_removal() {
+        // Setup
+        setup();
+
+        // Load test sheet
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize)]
+        struct SpacedString {
+            raw: String,
+            result: String,
+        }
+
+        let test_sheet: Vec<SpacedString> = serde_json::from_str(&load_test_sheet(&"TEST_STRING_SPACE_DEDUPLICATION".to_string())).expect("JSON was not well-formatted");
+
+        // Run test
+        use super::string_remove_duplicate_spaces;
+        for i in test_sheet.iter() {
+            info!("{}: {}", &i.raw, &i.result);
+            assert_eq!(string_remove_duplicate_spaces(&i.raw).unwrap(), i.result);
+        }
+    }
+
+    #[test]
+    fn string_year_removal() {
+        // Setup
+        setup();
+
+        // Load test sheet
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize)]
+        struct SpacedString {
+            raw: String,
+            result: String,
+        }
+
+        let test_sheet: Vec<SpacedString> = serde_json::from_str(&load_test_sheet(&"TEST_STRING_YEAR_REMOVAL".to_string())).expect("JSON was not well-formatted");
+
+        // Run test
+        use super::string_remove_years;
+        for i in test_sheet.iter() {
+            info!("{}: {}", &i.raw, &i.result);
+            assert_eq!(string_remove_years(&i.raw).unwrap(), i.result);
+        }
+    }
+
+    #[test]
+    fn string_episode_number_discovery() {
+        // Setup
+        setup();
+
+        // Load test sheet
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize)]
+        struct EpisodeNumber {
+            file_name: String,
+            episode_number: u16,
+        }
+
+        let test_sheet: Vec<EpisodeNumber> = serde_json::from_str(&load_test_sheet(&"TEST_STRING_EPISODE_NUMBER_DISCOVERY".to_string())).expect("JSON was not well-formatted");
+
+        // Run test
+        use super::string_find_episode_number;
+        for i in test_sheet.iter() {
+            info!("{}: {}", &i.file_name, &i.episode_number);
+            assert_eq!(string_find_episode_number(&i.file_name).unwrap()[0], i.episode_number);
+        }
+    }
+
+    #[test]
+    fn episode_number_extraction_with_context() {
+        // Setup
+        setup();
+
+        // Load test sheet
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize)]
+        struct EpisodeNumber {
+            file_names: Vec<String>,
+            episode_numbers: Vec<u16>,
+        }
+
+        let test_sheet: Vec<EpisodeNumber> = serde_json::from_str(&load_test_sheet(&"TEST_EPISODE_NUMBER_EXTRACTION_WITH_CONTEXT".to_string())).expect("JSON was not well-formatted");
+
+        // Run test
+        use super::extract_episode_number;
+        for i in test_sheet {
+            // Find episode number
+            let result = extract_episode_number(i.file_names).unwrap();
+
+            // Assert result
+            let assert_iter = result.iter().zip(i.episode_numbers.iter()); // Zip two chile elements of episode number together
+            for (prediction, ground_truth) in assert_iter {
+                info!("{}: {}", &prediction.sequence, &ground_truth);
+                assert_eq!(prediction.sequence, *ground_truth);
+            }
+        }
+    }
 }
