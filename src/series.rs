@@ -358,12 +358,12 @@ fn string_remove_roman_number(input: &str) -> Result<String, ()> {
 fn string_find_episode_number(file_name: &str) -> Result<Vec<u16>, ()> {
     let mut result = Vec::<u16>::new();
 
-    let mut clean_name = {
-        let mut middleware = string_remove_filtered(&file_name).unwrap();
+    let clean_name = {
+        let mut middleware = string_remove_file_extension(&file_name);
+        middleware = string_remove_filtered(&middleware).unwrap();
         middleware = string_remove_years(&middleware).unwrap();
         middleware = string_remove_empty_brackets(&middleware).unwrap();
         middleware = string_remove_duplicate_spaces(&middleware).unwrap();
-        middleware = string_remove_file_extension(&middleware);
         middleware.trim().to_string()
     };
     // Clean name should contain:
@@ -383,7 +383,7 @@ fn string_find_episode_number(file_name: &str) -> Result<Vec<u16>, ()> {
     }
 
     // Deal with common numbers
-    for (_ ,[common_number]) in Regex::new(r#"[[[:ascii:]]\[\({](\d{1,2})[[[:ascii:]]\]\)}]"#).unwrap().captures_iter(&clean_name).map(|c| c.extract()) {
+    for (_ ,[common_number]) in Regex::new(r#"[[[:alpha:]]\s\[\({\-_](\d{1,2})[[[:alpha:]]\s\]\)}\-_]*"#).unwrap().captures_iter(&clean_name).map(|c| c.extract()) {
         debug!("{}", &common_number);
         // result.push(common_number);
         match common_number.parse::<u16>() {
